@@ -1,32 +1,16 @@
-import React, { useId, useMemo, useState } from "react";
+import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { apiGetJson } from "../api/client";
 
 /**
  * PUBLIC_INTERFACE
  * HomePage is the landing page for browsing cars.
- * This implementation is UI-only scaffolding (no API calls yet):
- * - Search input
- * - Filter sidebar (Make/Model/Year min/max/Price min/max + Clear)
- * - Responsive grid with placeholder cards
- * - Loading / empty / error state blocks (wired to local component state)
+ * - Fetches from backend GET /api/cars
+ * - Syncs search/filter/sort/pagination with URL query params
+ * - Renders live car data with robust loading/error/empty states
  */
 export default function HomePage() {
-  const [searchParams] = useSearchParams();
-  const queryFromUrl = searchParams.get("q") ?? "";
-
-  // Local UI-only state (will later map to URL params and/or API calls).
-  const [searchText, setSearchText] = useState(queryFromUrl);
-  const [filters, setFilters] = useState({
-    make: "",
-    model: "",
-    yearMin: "",
-    yearMax: "",
-    priceMin: "",
-    priceMax: "",
-  });
-
-  // State scaffolds (these will later be controlled by data fetching).
-  const [uiState, setUiState] = useState("ready"); // "ready" | "loading" | "empty" | "error"
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // Mobile UX: allow collapsing the in-page filters.
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -39,89 +23,325 @@ export default function HomePage() {
     yearMax: useId(),
     priceMin: useId(),
     priceMax: useId(),
+    sort: useId(),
+    pageSize: useId(),
     resultsHeading: useId(),
     filtersRegion: useId(),
     activeSummary: useId(),
   };
 
-  const placeholderCars = useMemo(() => {
-    const makes = ["Astra", "Nord", "Crest", "Vale", "Orion", "Drift", "Cobalt", "Reef", "Arc"];
-    const models = ["S", "Sport", "Touring", "SE", "LX", "Premium", "GT", "Limited", "Eco"];
-    const badges = ["Hybrid", "AWD", "Low miles", "1-owner", "Certified", "New arrival", "Great value"];
+  // ---------- URL <-> UI state helpers ----------
+  const urlState = useMemo(() => {
+    const get = (k) => searchParams.get(k) ?? "";
 
-    return Array.from({ length: 9 }).map((_, idx) => {
-      const id = idx + 1;
-      const make = makes[idx % makes.length];
-      const model = models[(idx + 2) % models.length];
-      const year = 2016 + (idx % 9);
-      const price = 18950 + idx * 1750;
-      const pickedBadges = [badges[idx % badges.length], badges[(idx + 3) % badges.length]];
+    // Backend uses snake_case.
+    const q = get("q");
+    const make = get("make");
+    const model = get("model");
+    const yearMin = get("year_min");
+    const yearMax = get("year_max");
+    const priceMin = get("price_min");
+    const priceMax = get("price_max");
+    const sort = get("sort") || "-year";
 
-      return { id, make, model, year, price, badges: pickedBadges };
-    });
-  }, []);
+    const page = clampInt(get("page"), 1, 999999, 1);
+    const pageSize = clampInt(get("page_size"), 1, 50, 12);
 
-  // UI-only derivations: show “active filters” summary; no actual filtering yet.
+    return {
+      q,
+      make,
+      model,
+      yearMin,
+      yearMax,
+      priceMin,
+      priceMax,
+      sort,
+      page,
+      pageSize,
+    };
+  }, [searchParams]);
+
+  const [formState, setFormState] = useState(() => ({
+    q: urlState.q,
+    make: urlState.make,
+    model: urlState.model,
+    yearMin: urlState.yearMin,
+    yearMax: urlState.yearMax,
+    priceMin: urlState.priceMin,
+    priceMax: urlState.priceMax,
+    sort: urlState.sort,
+    pageSize: String(urlState.pageSize),
+  }));
+
+  // Keep form inputs in sync when URL changes (e.g., back/forward, top nav search).
+  useEffect(() => {
+    setFormState((prev) => ({
+      ...prev,
+      q: urlState.q,
+      make: urlState.make,
+      model: urlState.model,
+      yearMin: urlState.yearMin,
+      yearMax: urlState.yearMax,
+      priceMin: urlState.priceMin,
+      priceMax: urlState.priceMax,
+      sort: urlState.sort,
+      pageSize: String(urlState.pageSize),
+    }));
+    // If make was cleared via URL, ensure model doesn't stay “stuck”.
+    if (!urlState.make) {
+      setFormState((prev) => ({ ...prev, model: "" }));
+    }
+  }, [
+    urlState.q,
+    urlState.make,
+    urlState.model,
+    urlState.yearMin,
+    urlState.yearMax,
+    urlState.priceMin,
+    urlState.priceMax,
+    urlState.sort,
+    urlState.pageSize,
+  ]);
+
   const activeFilterCount = useMemo(() => {
-    const values = Object.values(filters).map((v) => String(v ?? "").trim());
-    const hasSearch = Boolean(searchText.trim());
-    const filled = values.filter(Boolean).length;
-    return filled + (hasSearch ? 1 : 0);
-  }, [filters, searchText]);
+    const values = [
+      urlState.q,
+      urlState.make,
+      urlState.model,
+      urlState.yearMin,
+      urlState.yearMax,
+      urlState.priceMin,
+      urlState.priceMax,
+    ]
+      .map((v) => String(v ?? "").trim())
+      .filter(Boolean);
+    return values.length;
+  }, [urlState]);
 
   const activeSummaryText = useMemo(() => {
     const parts = [];
-    if (searchText.trim()) parts.push(`Search: "${searchText.trim()}"`);
-    if (filters.make) parts.push(`Make: ${filters.make}`);
-    if (filters.model) parts.push(`Model: ${filters.model}`);
-    if (filters.yearMin || filters.yearMax) parts.push(`Year: ${filters.yearMin || "—"}–${filters.yearMax || "—"}`);
-    if (filters.priceMin || filters.priceMax)
-      parts.push(`Price: ${filters.priceMin ? formatPriceUSD(filters.priceMin) : "—"}–${
-        filters.priceMax ? formatPriceUSD(filters.priceMax) : "—"
-      }`);
-
+    if (urlState.q.trim()) parts.push(`Search: "${urlState.q.trim()}"`);
+    if (urlState.make) parts.push(`Make: ${urlState.make}`);
+    if (urlState.model) parts.push(`Model: ${urlState.model}`);
+    if (urlState.yearMin || urlState.yearMax) parts.push(`Year: ${urlState.yearMin || "—"}–${urlState.yearMax || "—"}`);
+    if (urlState.priceMin || urlState.priceMax) {
+      parts.push(
+        `Price: ${urlState.priceMin ? formatPriceUSD(urlState.priceMin) : "—"}–${
+          urlState.priceMax ? formatPriceUSD(urlState.priceMax) : "—"
+        }`
+      );
+    }
     if (!parts.length) return "No filters applied.";
     return parts.join(" • ");
-  }, [filters, searchText]);
+  }, [urlState]);
 
-  const visibleItems = uiState === "ready" ? placeholderCars : [];
+  // ---------- Data fetching ----------
+  const [cars, setCars] = useState([]);
+  const [meta, setMeta] = useState({ total: 0, page: urlState.page, pageSize: urlState.pageSize });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const resultsCountText = (() => {
-    if (uiState === "loading") return "Loading cars…";
-    if (uiState === "error") return "Unable to load results.";
-    if (uiState === "empty") return "No cars match your criteria.";
-    return `${visibleItems.length} cars`;
-  })();
+  const abortRef = useRef(null);
+
+  useEffect(() => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    let isMounted = true;
+
+    async function run() {
+      setLoading(true);
+      setError("");
+
+      try {
+        const data = await apiGetJson("/api/cars", {
+          query: {
+            q: urlState.q || undefined,
+            make: urlState.make || undefined,
+            model: urlState.model || undefined,
+            year_min: normalizeNumberish(urlState.yearMin),
+            year_max: normalizeNumberish(urlState.yearMax),
+            price_min: normalizeNumberish(urlState.priceMin),
+            price_max: normalizeNumberish(urlState.priceMax),
+            sort: urlState.sort || "-year",
+            page: urlState.page,
+            page_size: urlState.pageSize,
+          },
+          signal: controller.signal,
+        });
+
+        if (!isMounted) return;
+
+        const items = Array.isArray(data?.items) ? data.items : [];
+        setCars(items);
+        setMeta({
+          total: Number(data?.total ?? items.length ?? 0),
+          page: Number(data?.page ?? urlState.page),
+          pageSize: Number(data?.page_size ?? urlState.pageSize),
+        });
+      } catch (e) {
+        if (!isMounted) return;
+        if (e?.name === "AbortError") return;
+        setCars([]);
+        setMeta({ total: 0, page: urlState.page, pageSize: urlState.pageSize });
+        setError(e?.message || "Unable to load cars.");
+      } finally {
+        if (!isMounted) return;
+        setLoading(false);
+      }
+    }
+
+    run();
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
+  }, [urlState]);
+
+  const empty = !loading && !error && cars.length === 0;
+
+  const totalPages = useMemo(() => {
+    const total = Number(meta.total || 0);
+    const ps = Number(meta.pageSize || urlState.pageSize);
+    return Math.max(1, Math.ceil(total / Math.max(1, ps)));
+  }, [meta.total, meta.pageSize, urlState.pageSize]);
+
+  const resultsCountText = useMemo(() => {
+    if (loading) return "Loading cars…";
+    if (error) return "Unable to load results.";
+    if (empty) return "No cars match your criteria.";
+    return `${meta.total.toLocaleString()} cars`;
+  }, [loading, error, empty, meta.total]);
+
+  // ---------- URL mutation helpers ----------
+  // PUBLIC_INTERFACE
+  function setUrlParams(next, { replace = false } = {}) {
+    /** Update URL search params (omits empty values). */
+    const sp = new URLSearchParams();
+
+    // Preserve only known keys in a predictable order.
+    const entries = [
+      ["q", next.q],
+      ["make", next.make],
+      ["model", next.model],
+      ["year_min", next.yearMin],
+      ["year_max", next.yearMax],
+      ["price_min", next.priceMin],
+      ["price_max", next.priceMax],
+      ["sort", next.sort],
+      ["page", String(next.page ?? 1)],
+      ["page_size", String(next.pageSize ?? 12)],
+    ];
+
+    for (const [k, v] of entries) {
+      if (v === null || v === undefined) continue;
+      const s = String(v).trim();
+      if (!s) continue;
+
+      // Avoid redundant default values (keeps URLs clean).
+      if (k === "sort" && s === "-year") continue;
+      if (k === "page" && s === "1") continue;
+      if (k === "page_size" && s === "12") continue;
+
+      sp.set(k, s);
+    }
+
+    setSearchParams(sp, { replace });
+  }
+
+  // PUBLIC_INTERFACE
+  function onApplyFilters(e) {
+    /** Apply the current in-form inputs to the URL and reset to page 1. */
+    e.preventDefault();
+
+    const nextMake = formState.make;
+    const nextModel = nextMake ? formState.model : "";
+
+    setUrlParams({
+      q: formState.q,
+      make: nextMake,
+      model: nextModel,
+      yearMin: formState.yearMin,
+      yearMax: formState.yearMax,
+      priceMin: formState.priceMin,
+      priceMax: formState.priceMax,
+      sort: formState.sort || "-year",
+      page: 1,
+      pageSize: clampInt(formState.pageSize, 1, 50, 12),
+    });
+  }
 
   // PUBLIC_INTERFACE
   function onClearFilters() {
-    /** Clears all filter inputs (UI-only scaffolding). */
-    setSearchText("");
-    setFilters({
+    /** Clears all filter inputs and URL params (keeps defaults). */
+    setFormState({
+      q: "",
       make: "",
       model: "",
       yearMin: "",
       yearMax: "",
       priceMin: "",
       priceMax: "",
+      sort: "-year",
+      pageSize: "12",
+    });
+    setUrlParams({
+      q: "",
+      make: "",
+      model: "",
+      yearMin: "",
+      yearMax: "",
+      priceMin: "",
+      priceMax: "",
+      sort: "-year",
+      page: 1,
+      pageSize: 12,
     });
   }
 
   // PUBLIC_INTERFACE
-  function onSubmitSearch(e) {
-    /** UI-only submit handler: prevents navigation; API wiring comes later. */
-    e.preventDefault();
+  function onRetry() {
+    /** Retries by re-setting params to themselves (forces effect in edge cases). */
+    setUrlParams(
+      {
+        q: urlState.q,
+        make: urlState.make,
+        model: urlState.model,
+        yearMin: urlState.yearMin,
+        yearMax: urlState.yearMax,
+        priceMin: urlState.priceMin,
+        priceMax: urlState.priceMax,
+        sort: urlState.sort || "-year",
+        page: urlState.page,
+        pageSize: urlState.pageSize,
+      },
+      { replace: true }
+    );
   }
 
-  const isResultsInteractive = uiState === "ready";
-  const disabledReason =
-    uiState === "loading"
-      ? "Loading results"
-      : uiState === "empty"
-        ? "No results"
-        : uiState === "error"
-          ? "Error state"
-          : null;
+  // PUBLIC_INTERFACE
+  function goToPage(nextPage) {
+    /** Navigate to a specific 1-based page via URL params. */
+    const p = clampInt(nextPage, 1, totalPages, 1);
+    setUrlParams({
+      ...urlState,
+      page: p,
+      pageSize: urlState.pageSize,
+    });
+  }
+
+  // PUBLIC_INTERFACE
+  function onPageSizeChange(nextPageSizeRaw) {
+    /** Update page size (URL) and reset to page 1. */
+    const ps = clampInt(nextPageSizeRaw, 1, 50, 12);
+    setUrlParams({
+      ...urlState,
+      page: 1,
+      pageSize: ps,
+    });
+  }
 
   return (
     <div className="home-layout">
@@ -163,7 +383,7 @@ export default function HomePage() {
             className={`home-filter-collapsible ${filtersOpen ? "is-open" : ""}`}
             aria-labelledby={ids.activeSummary}
           >
-            <form className="home-filter-form" onSubmit={onSubmitSearch}>
+            <form className="home-filter-form" onSubmit={onApplyFilters}>
               <div className="home-filter-block" role="search" aria-label="Search cars">
                 <label className="ds-label" htmlFor={ids.search}>
                   Search
@@ -172,13 +392,13 @@ export default function HomePage() {
                   id={ids.search}
                   className="ds-input"
                   type="search"
-                  value={searchText}
+                  value={formState.q}
                   placeholder="Search make, model, features…"
-                  onChange={(e) => setSearchText(e.target.value)}
+                  onChange={(e) => setFormState((p) => ({ ...p, q: e.target.value }))}
                   autoComplete="off"
                 />
                 <p className="ds-body ds-muted" style={{ margin: "8px 0 0 0", fontSize: 13 }}>
-                  Tip: URL search remains in the top bar. This input is UI-only for now.
+                  Syncs with the top-bar search and URL query (<span className="ds-chip">q</span>).
                 </p>
               </div>
 
@@ -187,80 +407,47 @@ export default function HomePage() {
                   <label className="ds-label" htmlFor={ids.make}>
                     Make
                   </label>
-                  <select
+                  <input
                     id={ids.make}
-                    className="ds-input ds-select"
-                    value={filters.make}
+                    className="ds-input"
+                    value={formState.make}
                     onChange={(e) => {
                       const nextMake = e.target.value;
-                      setFilters((p) => ({
+                      setFormState((p) => ({
                         ...p,
                         make: nextMake,
-                        // Keep model consistent with make choice (UI only).
                         model: nextMake ? p.model : "",
                       }));
                     }}
-                  >
-                    <option value="">Any make</option>
-                    <option value="Toyota">Toyota</option>
-                    <option value="Honda">Honda</option>
-                    <option value="Ford">Ford</option>
-                    <option value="BMW">BMW</option>
-                    <option value="Tesla">Tesla</option>
-                  </select>
+                    placeholder="Any make"
+                    autoComplete="off"
+                  />
+                  <p className="ds-body ds-muted home-field-hint">
+                    Tip: Exact match filter on backend (case-insensitive).
+                  </p>
                 </div>
 
                 <div className="home-field">
                   <label className="ds-label" htmlFor={ids.model}>
                     Model
                   </label>
-                  <select
+                  <input
                     id={ids.model}
-                    className="ds-input ds-select"
-                    value={filters.model}
-                    onChange={(e) => setFilters((p) => ({ ...p, model: e.target.value }))}
-                    disabled={!filters.make}
-                    aria-describedby={!filters.make ? `${ids.model}-hint` : undefined}
-                  >
-                    <option value="">{filters.make ? "Any model" : "Select a make first"}</option>
-                    {/* UI-only: simplistic dependent options */}
-                    {filters.make === "Toyota" ? (
-                      <>
-                        <option value="Camry">Camry</option>
-                        <option value="Corolla">Corolla</option>
-                        <option value="RAV4">RAV4</option>
-                      </>
-                    ) : filters.make === "Honda" ? (
-                      <>
-                        <option value="Civic">Civic</option>
-                        <option value="Accord">Accord</option>
-                        <option value="CR-V">CR-V</option>
-                      </>
-                    ) : filters.make === "Ford" ? (
-                      <>
-                        <option value="F-150">F-150</option>
-                        <option value="Escape">Escape</option>
-                        <option value="Mustang">Mustang</option>
-                      </>
-                    ) : filters.make === "BMW" ? (
-                      <>
-                        <option value="3 Series">3 Series</option>
-                        <option value="X3">X3</option>
-                        <option value="X5">X5</option>
-                      </>
-                    ) : filters.make === "Tesla" ? (
-                      <>
-                        <option value="Model 3">Model 3</option>
-                        <option value="Model Y">Model Y</option>
-                        <option value="Model S">Model S</option>
-                      </>
-                    ) : null}
-                  </select>
-                  {!filters.make ? (
+                    className="ds-input"
+                    value={formState.model}
+                    onChange={(e) => setFormState((p) => ({ ...p, model: e.target.value }))}
+                    disabled={!formState.make}
+                    aria-describedby={!formState.make ? `${ids.model}-hint` : undefined}
+                    placeholder={formState.make ? "Any model" : "Enter a make first"}
+                    autoComplete="off"
+                  />
+                  {!formState.make ? (
                     <p className="ds-body ds-muted home-field-hint" id={`${ids.model}-hint`}>
-                      Choose a make to enable model options.
+                      Choose a make to enable the model filter.
                     </p>
-                  ) : null}
+                  ) : (
+                    <p className="ds-body ds-muted home-field-hint">Tip: Exact match filter on backend (case-insensitive).</p>
+                  )}
                 </div>
 
                 <fieldset className="home-fieldset" aria-label="Year range">
@@ -275,11 +462,11 @@ export default function HomePage() {
                         className="ds-input"
                         inputMode="numeric"
                         type="number"
-                        min="1900"
+                        min="1886"
                         max="2100"
-                        value={filters.yearMin}
+                        value={formState.yearMin}
                         placeholder="Min"
-                        onChange={(e) => setFilters((p) => ({ ...p, yearMin: e.target.value }))}
+                        onChange={(e) => setFormState((p) => ({ ...p, yearMin: e.target.value }))}
                       />
                     </div>
                     <div>
@@ -291,11 +478,11 @@ export default function HomePage() {
                         className="ds-input"
                         inputMode="numeric"
                         type="number"
-                        min="1900"
+                        min="1886"
                         max="2100"
-                        value={filters.yearMax}
+                        value={formState.yearMax}
                         placeholder="Max"
-                        onChange={(e) => setFilters((p) => ({ ...p, yearMax: e.target.value }))}
+                        onChange={(e) => setFormState((p) => ({ ...p, yearMax: e.target.value }))}
                       />
                     </div>
                   </div>
@@ -314,9 +501,9 @@ export default function HomePage() {
                         inputMode="numeric"
                         type="number"
                         min="0"
-                        value={filters.priceMin}
+                        value={formState.priceMin}
                         placeholder="Min"
-                        onChange={(e) => setFilters((p) => ({ ...p, priceMin: e.target.value }))}
+                        onChange={(e) => setFormState((p) => ({ ...p, priceMin: e.target.value }))}
                       />
                     </div>
                     <div>
@@ -329,35 +516,70 @@ export default function HomePage() {
                         inputMode="numeric"
                         type="number"
                         min="0"
-                        value={filters.priceMax}
+                        value={formState.priceMax}
                         placeholder="Max"
-                        onChange={(e) => setFilters((p) => ({ ...p, priceMax: e.target.value }))}
+                        onChange={(e) => setFormState((p) => ({ ...p, priceMax: e.target.value }))}
                       />
                     </div>
                   </div>
                 </fieldset>
+
+                <div className="home-field">
+                  <label className="ds-label" htmlFor={ids.sort}>
+                    Sort
+                  </label>
+                  <select
+                    id={ids.sort}
+                    className="ds-input ds-select"
+                    value={formState.sort || "-year"}
+                    onChange={(e) => setFormState((p) => ({ ...p, sort: e.target.value }))}
+                  >
+                    <option value="-year">Newest year</option>
+                    <option value="year">Oldest year</option>
+                    <option value="-price">Highest price</option>
+                    <option value="price">Lowest price</option>
+                    <option value="-mileage">Highest mileage</option>
+                    <option value="mileage">Lowest mileage</option>
+                    <option value="make">Make (A–Z)</option>
+                    <option value="-make">Make (Z–A)</option>
+                    <option value="model">Model (A–Z)</option>
+                    <option value="-model">Model (Z–A)</option>
+                  </select>
+                </div>
+
+                <div className="home-field">
+                  <label className="ds-label" htmlFor={ids.pageSize}>
+                    Page size
+                  </label>
+                  <select
+                    id={ids.pageSize}
+                    className="ds-input ds-select"
+                    value={formState.pageSize}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setFormState((p) => ({ ...p, pageSize: next }));
+                      // Update URL immediately for predictable paging behavior.
+                      onPageSizeChange(next);
+                    }}
+                  >
+                    <option value="6">6</option>
+                    <option value="12">12</option>
+                    <option value="18">18</option>
+                    <option value="24">24</option>
+                    <option value="36">36</option>
+                    <option value="50">50</option>
+                  </select>
+                </div>
               </div>
 
               <div className="home-filter-actions" aria-label="Filter actions">
-                <button className="ds-btn ds-btn-primary" type="submit">
-                  Apply (UI only)
+                <button className="ds-btn ds-btn-primary" type="submit" disabled={loading}>
+                  Apply
                 </button>
 
-                {/* Scaffolding toggles to visually verify state blocks without real data */}
-                <div className="home-state-toggles" aria-label="State scaffolding controls">
-                  <button className="ds-btn ds-btn-ghost" type="button" onClick={() => setUiState("ready")}>
-                    Ready
-                  </button>
-                  <button className="ds-btn ds-btn-ghost" type="button" onClick={() => setUiState("loading")}>
-                    Loading
-                  </button>
-                  <button className="ds-btn ds-btn-ghost" type="button" onClick={() => setUiState("empty")}>
-                    Empty
-                  </button>
-                  <button className="ds-btn ds-btn-ghost" type="button" onClick={() => setUiState("error")}>
-                    Error
-                  </button>
-                </div>
+                <p className="ds-body ds-muted" style={{ margin: 0, fontSize: 13 }}>
+                  Filters update the URL and trigger a refresh automatically.
+                </p>
               </div>
             </form>
           </div>
@@ -369,31 +591,43 @@ export default function HomePage() {
           <h1 className="ds-h1" id={ids.resultsHeading}>
             Browse cars
           </h1>
+
           <p className="ds-body ds-muted" style={{ marginTop: 6 }}>
-            Explore models and details. UI scaffolding only — no API calls yet.
-            {queryFromUrl ? (
-              <>
-                {" "}
-                Current URL query: <span className="ds-chip">{queryFromUrl}</span>
-              </>
-            ) : null}
+            Live results from the backend API.
           </p>
 
           <div className="home-results-meta" aria-live="polite">
             <span className="ds-chip">{resultsCountText}</span>
+            <span className="ds-chip">
+              Page {urlState.page} / {totalPages}
+            </span>
+          </div>
+
+          <div className="main-actions" aria-label="Pagination controls">
+            <button className="ds-btn" type="button" onClick={() => goToPage(urlState.page - 1)} disabled={loading || urlState.page <= 1}>
+              Previous
+            </button>
+            <button
+              className="ds-btn"
+              type="button"
+              onClick={() => goToPage(urlState.page + 1)}
+              disabled={loading || urlState.page >= totalPages}
+            >
+              Next
+            </button>
           </div>
         </header>
 
-        {uiState === "loading" ? (
+        {loading ? (
           <LoadingState />
-        ) : uiState === "error" ? (
-          <ErrorState />
-        ) : uiState === "empty" ? (
+        ) : error ? (
+          <ErrorState errorMessage={error} onRetry={onRetry} />
+        ) : empty ? (
           <EmptyState />
         ) : (
           <div className="car-grid" role="list" aria-labelledby={ids.resultsHeading}>
-            {visibleItems.map((car) => (
-              <CarCard key={car.id} car={car} isInteractive={isResultsInteractive} disabledReason={disabledReason} />
+            {cars.map((car) => (
+              <CarCard key={car.id} car={car} />
             ))}
           </div>
         )}
@@ -402,56 +636,95 @@ export default function HomePage() {
   );
 }
 
+function clampInt(v, min, max, fallback) {
+  const n = Number.parseInt(String(v), 10);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
+function normalizeNumberish(v) {
+  const s = String(v ?? "").trim();
+  if (!s) return undefined;
+  const n = Number(s);
+  if (!Number.isFinite(n)) return undefined;
+  return n;
+}
+
 function formatPriceUSD(value) {
   const n = Number(value);
   if (!Number.isFinite(n)) return "$—";
   return n.toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 }
 
-function CarCard({ car, isInteractive, disabledReason }) {
-  const disabled = !isInteractive;
+function pickPrimaryImage(car) {
+  const imgs = car?.images;
+  if (Array.isArray(imgs) && imgs.length > 0 && typeof imgs[0] === "string" && imgs[0].trim()) {
+    return imgs[0].trim();
+  }
+  return "";
+}
+
+function carTitle(car) {
+  const make = car?.make || "";
+  const model = car?.model || "";
+  return `${make} ${model}`.trim() || "Car";
+}
+
+function CarCard({ car }) {
+  const title = carTitle(car);
+  const img = pickPrimaryImage(car);
+  const year = car?.year;
+  const mileage = car?.mileage;
 
   return (
-    <article className="car-card ds-card" role="listitem" aria-label={`${car.make} ${car.model} ${car.year}`}>
-      <div className="car-card-media" aria-hidden="true">
-        <div className="car-image-placeholder">
-          <span className="car-image-placeholder-text">Image</span>
-        </div>
+    <article className="car-card ds-card" role="listitem" aria-label={`${title}${year ? ` ${year}` : ""}`}>
+      <div className="car-card-media">
+        {img ? (
+          // eslint-disable-next-line jsx-a11y/alt-text
+          <img
+            src={img}
+            alt={`${title} photo`}
+            style={{
+              width: "100%",
+              aspectRatio: "16 / 10",
+              objectFit: "cover",
+              borderRadius: 14,
+              border: "1px solid var(--color-border)",
+              background: "var(--color-surface)",
+              display: "block",
+            }}
+            loading="lazy"
+          />
+        ) : (
+          <div className="car-image-placeholder" aria-label="No image available">
+            <span className="car-image-placeholder-text">No image</span>
+          </div>
+        )}
       </div>
 
       <div className="car-card-body">
         <h3 className="car-card-title">
-          <span className="car-title-main">
-            {car.make} {car.model}
-          </span>
-          <span className="car-title-year">{car.year}</span>
+          <span className="car-title-main">{title}</span>
+          {Number.isFinite(Number(year)) ? <span className="car-title-year">{year}</span> : null}
         </h3>
 
-        <p className="car-card-price">{formatPriceUSD(car.price)}</p>
+        <p className="car-card-price">{formatPriceUSD(car?.price)}</p>
 
-        <div className="car-card-badges" aria-label="Key highlights">
-          {car.badges.map((b) => (
-            <span className="ds-chip" key={b}>
-              {b}
-            </span>
-          ))}
+        <div className="car-card-badges" aria-label="Key attributes">
+          {car?.fuel ? <span className="ds-chip">{car.fuel}</span> : null}
+          {car?.transmission ? <span className="ds-chip">{car.transmission}</span> : null}
+          {Number.isFinite(Number(mileage)) ? <span className="ds-chip">{Number(mileage).toLocaleString()} mi</span> : null}
         </div>
 
         <div className="car-card-actions" aria-label="Card actions">
-          {disabled ? (
-            <span className="ds-btn ds-btn-primary" aria-disabled="true" title={disabledReason || "Unavailable"}>
-              View details
-            </span>
-          ) : (
-            <Link className="ds-btn ds-btn-primary" to={`/cars/${car.id}`} aria-label={`View details for ${car.make} ${car.model}`}>
-              View details
-            </Link>
-          )}
+          <Link className="ds-btn ds-btn-primary" to={`/cars/${car.id}`} aria-label={`View details for ${title}`}>
+            View details
+          </Link>
 
           <button
             className="ds-btn"
             type="button"
-            aria-label={`Save ${car.make} ${car.model} (placeholder)`}
+            aria-label={`Save ${title} (placeholder)`}
             disabled
             title="Save will be available when accounts are implemented"
           >
@@ -468,7 +741,7 @@ function LoadingState() {
     <div className="ds-card" aria-label="Loading cars" aria-busy="true">
       <h2 className="ds-h2">Loading</h2>
       <p className="ds-body ds-muted" style={{ marginTop: 8 }}>
-        Fetching results… (placeholder)
+        Fetching results…
       </p>
       <div className="skeleton-grid" aria-hidden="true">
         {Array.from({ length: 6 }).map((_, i) => (
@@ -490,18 +763,18 @@ function EmptyState() {
   );
 }
 
-function ErrorState() {
+function ErrorState({ errorMessage, onRetry }) {
   return (
     <div className="ds-card" aria-label="Error loading cars">
       <h2 className="ds-h2" style={{ color: "var(--color-error)" }}>
         Something went wrong
       </h2>
       <p className="ds-body ds-muted" style={{ marginTop: 8 }}>
-        We couldn’t load results. This is a placeholder error state until APIs are wired.
+        {errorMessage || "We couldn’t load results."}
       </p>
       <div style={{ marginTop: 12 }}>
-        <button className="ds-btn ds-btn-primary" type="button">
-          Retry (placeholder)
+        <button className="ds-btn ds-btn-primary" type="button" onClick={onRetry}>
+          Retry
         </button>
       </div>
     </div>
