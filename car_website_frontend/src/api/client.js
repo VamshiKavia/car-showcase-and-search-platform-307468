@@ -30,13 +30,11 @@ function getApiBaseUrl() {
 function inferDefaultBaseUrl() {
   if (typeof window !== "undefined") {
     const host = window.location.hostname;
+    // Only use localhost backend if browser is *actually* running on a local dev host.
     if (host === "localhost" || host === "127.0.0.1") return DEFAULT_LOCAL_BACKEND;
-
-    // In preview environments, the safest default (if env is unset) is "same origin".
-    // This avoids the browser incorrectly attempting to call its own localhost.
+    // Always use window.location.origin (preview or deployed), ensures API calls go to the correct backend.
     return window.location.origin;
   }
-
   // SSR / tests: fall back to local backend.
   return DEFAULT_LOCAL_BACKEND;
 }
