@@ -331,6 +331,193 @@ a:hover {
   gap: var(--space-4);
 }
 
+/* ---------- Home page (Car list UI) ---------- */
+
+.home-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: var(--space-6);
+  align-items: start;
+}
+
+/* In-page sidebar card */
+.home-filters {
+  position: sticky;
+  top: calc(var(--navbar-height) + var(--space-6));
+  align-self: start;
+}
+
+.home-filters-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.home-filter-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.home-filter-block {
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.home-filter-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-3);
+}
+
+.home-field {
+  min-width: 0;
+}
+
+.home-fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.home-range {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+
+.home-filter-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.home-state-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.home-results {
+  min-width: 0;
+}
+
+.home-results-meta {
+  margin-top: 10px;
+}
+
+/* Grid */
+.car-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.car-card {
+  padding: 0; /* internal sections manage padding */
+  overflow: hidden;
+}
+
+.car-card-media {
+  padding: var(--space-4);
+  padding-bottom: 0;
+}
+
+.car-image-placeholder {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: 14px;
+  border: 1px dashed var(--color-border);
+  background: linear-gradient(180deg, rgba(55, 65, 81, 0.06), rgba(55, 65, 81, 0.02));
+  display: grid;
+  place-items: center;
+}
+
+.car-image-placeholder-text {
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.car-card-body {
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.car-card-title {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--text-md);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.car-title-main {
+  min-width: 0;
+}
+
+.car-title-year {
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+  font-weight: 700;
+}
+
+.car-card-price {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 800;
+  color: var(--color-text);
+}
+
+.car-card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.car-card-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+/* State scaffolds */
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.skeleton-card {
+  height: 180px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: linear-gradient(90deg, rgba(17, 24, 39, 0.04), rgba(17, 24, 39, 0.08), rgba(17, 24, 39, 0.04));
+  background-size: 200% 100%;
+  animation: shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 0% 0%;
+  }
+  100% {
+    background-position: 200% 0%;
+  }
+}
+
 .placeholder-card-title {
   font-size: var(--text-sm);
   font-weight: 700;
@@ -360,6 +547,22 @@ a:hover {
   .nav-search {
     max-width: 360px;
   }
+
+  .home-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .home-filters {
+    position: static;
+  }
+
+  .car-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .skeleton-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 640px) {
@@ -377,5 +580,18 @@ a:hover {
 
   .placeholder-grid {
     grid-template-columns: 1fr;
+  }
+
+  .car-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .skeleton-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .car-card-actions {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
