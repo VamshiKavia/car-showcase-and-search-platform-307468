@@ -1,17 +1,44 @@
-const DEFAULT_DEV_BACKEND = "http://localhost:3001";
+const DEFAULT_LOCAL_BACKEND = "http://localhost:3001";
 
 /**
  * Returns the backend base URL from env configuration.
- * Prefers REACT_APP_API_BASE, then falls back to REACT_APP_BACKEND_URL.
- * In dev, falls back to http://localhost:3001.
+ *
+ * Priority:
+ *  1) REACT_APP_API_BASE
+ *  2) REACT_APP_BACKEND_URL
+ *  3) In local preview/dev only: http://localhost:3001
+ *
+ * Rationale:
+ * - In hosted previews, "localhost:3001" from the browser is NOT the backend.
+ * - So we only default to localhost when the frontend itself is running on localhost.
  *
  * Note: CRA only exposes env vars prefixed with REACT_APP_.
  */
 function getApiBaseUrl() {
-  const raw = (process.env.REACT_APP_API_BASE || process.env.REACT_APP_BACKEND_URL || DEFAULT_DEV_BACKEND).trim();
+  const fromEnv = (process.env.REACT_APP_API_BASE || process.env.REACT_APP_BACKEND_URL || "").trim();
+  const raw = fromEnv || inferDefaultBaseUrl();
 
   // Remove trailing slashes to avoid double slashes when joining paths.
   return raw.replace(/\/+$/, "");
+}
+
+/**
+ * Infer a safe default base URL when env is not set.
+ * - Local: use explicit backend dev port.
+ * - Non-local: use same origin (assumes reverse proxy / ingress routes to backend).
+ */
+function inferDefaultBaseUrl() {
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host === "localhost" || host === "127.0.0.1") return DEFAULT_LOCAL_BACKEND;
+
+    // In preview environments, the safest default (if env is unset) is "same origin".
+    // This avoids the browser incorrectly attempting to call its own localhost.
+    return window.location.origin;
+  }
+
+  // SSR / tests: fall back to local backend.
+  return DEFAULT_LOCAL_BACKEND;
 }
 
 /**
