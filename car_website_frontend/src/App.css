@@ -1,0 +1,652 @@
+/* Ocean Professional (Minimalist) design system
+   - Uses CSS variables as theme tokens
+   - Provides basic components (buttons, inputs, cards)
+   - Provides app shell layout (navbar + sidebar + main)
+*/
+
+:root {
+  /* Theme tokens (provided styleThemeData) */
+  --color-primary: #374151;   /* slate-700 */
+  --color-secondary: #9ca3af; /* gray-400 */
+  --color-success: #10b981;   /* emerald-500 */
+  --color-error: #ef4444;     /* red-500 */
+  --color-background: #ffffff;
+  --color-surface: #f9fafb;   /* gray-50 */
+  --color-text: #111827;      /* gray-900 */
+
+  /* Derived tokens */
+  --color-border: #e5e7eb;    /* gray-200 */
+  --color-muted: #6b7280;     /* gray-500 */
+  --color-focus: rgba(55, 65, 81, 0.35);
+
+  /* Typography */
+  --font-sans: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji",
+    "Segoe UI Emoji";
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-md: 16px;
+  --text-lg: 18px;
+  --text-xl: 20px;
+  --text-2xl: 28px;
+
+  --leading-tight: 1.2;
+  --leading-normal: 1.5;
+
+  /* Spacing & radius */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+
+  --radius-sm: 10px;
+  --radius-md: 14px;
+
+  /* Layout */
+  --container-max: 1200px;
+  --navbar-height: 64px;
+
+  /* Motion */
+  --transition-fast: 150ms ease;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--color-background);
+  color: var(--color-text);
+  line-height: var(--leading-normal);
+}
+
+/* Accessible focus */
+:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* Links */
+a {
+  color: inherit;
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+/* ---------- Design System Components ---------- */
+
+.ds-container {
+  width: 100%;
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 0 var(--space-4);
+}
+
+.ds-h1 {
+  font-size: var(--text-2xl);
+  line-height: var(--leading-tight);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.ds-h2 {
+  font-size: var(--text-xl);
+  line-height: var(--leading-tight);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.ds-body {
+  font-size: var(--text-md);
+  margin: 0;
+  color: var(--color-text);
+}
+
+.ds-muted {
+  color: var(--color-muted);
+}
+
+.ds-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  font-size: var(--text-sm);
+  color: var(--color-primary);
+}
+
+.ds-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+}
+
+.ds-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.ds-btn:hover {
+  background: var(--color-surface);
+}
+
+.ds-btn:active {
+  transform: translateY(1px);
+}
+
+.ds-btn-primary {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #ffffff;
+}
+
+.ds-btn-primary:hover {
+  filter: brightness(1.05);
+}
+
+.ds-btn-ghost {
+  background: transparent;
+  border-color: transparent;
+}
+
+.ds-input {
+  height: 40px;
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  color: var(--color-text);
+  padding: 0 12px;
+  font-size: var(--text-sm);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+/* Selects should visually match inputs */
+.ds-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 38px; /* room for caret */
+  background-image: linear-gradient(45deg, transparent 50%, var(--color-muted) 50%),
+    linear-gradient(135deg, var(--color-muted) 50%, transparent 50%),
+    linear-gradient(to right, transparent, transparent);
+  background-position: calc(100% - 18px) 16px, calc(100% - 13px) 16px, 0 0;
+  background-size: 5px 5px, 5px 5px, 100% 100%;
+  background-repeat: no-repeat;
+}
+
+.ds-input::placeholder {
+  color: var(--color-secondary);
+}
+
+.ds-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 4px rgba(55, 65, 81, 0.12);
+}
+
+.ds-label {
+  display: inline-block;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--color-primary);
+  margin-bottom: 6px;
+}
+
+.ds-sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* ---------- App Shell ---------- */
+
+.app {
+  min-height: 100vh;
+  background: var(--color-background);
+  color: var(--color-text);
+}
+
+.app-navbar {
+  height: var(--navbar-height);
+  border-bottom: 1px solid var(--color-border);
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(10px);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.app-navbar-inner {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  justify-content: space-between;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--color-text);
+}
+
+.brand-mark {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--color-primary);
+  display: inline-block;
+}
+
+.brand-subtitle {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.nav-search {
+  flex: 1;
+  max-width: 520px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.nav-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: var(--space-6);
+  padding: var(--space-6) 0;
+}
+
+.sidebar {
+  position: sticky;
+  top: calc(var(--navbar-height) + var(--space-6));
+  align-self: start;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.sidebar-title {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--color-primary);
+  margin: 0;
+}
+
+.main {
+  min-width: 0;
+}
+
+.main-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.main-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.placeholder-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+/* ---------- Home page (Car list UI) ---------- */
+
+.home-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: var(--space-6);
+  align-items: start;
+}
+
+/* In-page sidebar card */
+.home-filters {
+  position: sticky;
+  top: calc(var(--navbar-height) + var(--space-6));
+  align-self: start;
+}
+
+.home-filters-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.home-filter-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.home-filters-subtitle {
+  margin: 0 0 var(--space-4) 0;
+  font-size: var(--text-sm);
+}
+
+.home-field-hint {
+  margin: 8px 0 0 0;
+  font-size: 13px;
+}
+
+/* Collapsible filter area:
+   - Desktop: always visible
+   - Mobile: toggled with button */
+.home-filter-collapsible {
+  display: block;
+}
+
+.home-filter-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.home-filter-block {
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.home-filter-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-3);
+}
+
+.home-field {
+  min-width: 0;
+}
+
+.home-fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.home-range {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+
+.home-filter-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.home-state-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.home-results {
+  min-width: 0;
+}
+
+.home-results-meta {
+  margin-top: 10px;
+}
+
+.home-filters-toggle {
+  display: none;
+}
+
+/* Grid */
+.car-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.car-card {
+  padding: 0; /* internal sections manage padding */
+  overflow: hidden;
+}
+
+.car-card-media {
+  padding: var(--space-4);
+  padding-bottom: 0;
+}
+
+.car-image-placeholder {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: 14px;
+  border: 1px dashed var(--color-border);
+  background: linear-gradient(180deg, rgba(55, 65, 81, 0.06), rgba(55, 65, 81, 0.02));
+  display: grid;
+  place-items: center;
+}
+
+.car-image-placeholder-text {
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.car-card-body {
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.car-card-title {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--text-md);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.car-title-main {
+  min-width: 0;
+}
+
+.car-title-year {
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+  font-weight: 700;
+}
+
+.car-card-price {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 800;
+  color: var(--color-text);
+}
+
+.car-card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.car-card-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+/* State scaffolds */
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.skeleton-card {
+  height: 180px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: linear-gradient(90deg, rgba(17, 24, 39, 0.04), rgba(17, 24, 39, 0.08), rgba(17, 24, 39, 0.04));
+  background-size: 200% 100%;
+  animation: shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 0% 0%;
+  }
+  100% {
+    background-position: 200% 0%;
+  }
+}
+
+.placeholder-card-title {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  margin: 0 0 var(--space-2) 0;
+}
+
+.placeholder-card-body {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+}
+
+/* Responsive: collapse sidebar under content */
+@media (max-width: 960px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
+  }
+
+  .placeholder-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .nav-search {
+    max-width: 360px;
+  }
+
+  .home-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .home-filters {
+    position: static;
+  }
+
+  .car-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .skeleton-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .app-navbar-inner {
+    gap: var(--space-3);
+  }
+
+  .brand-subtitle {
+    display: none;
+  }
+
+  .nav-search {
+    max-width: none;
+  }
+
+  .placeholder-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .car-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .skeleton-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .car-card-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .home-filters-toggle {
+    display: inline-flex;
+  }
+
+  .home-filter-collapsible {
+    display: none;
+  }
+
+  .home-filter-collapsible.is-open {
+    display: block;
+  }
+}

@@ -1,0 +1,385 @@
+{
+  "paths": {
+    "/": {
+      "get": {
+        "responses": {
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Return a basic health status payload.",
+        "tags": [
+          "Health Check"
+        ]
+      }
+    },
+    "/api/cars": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "description": "Search text applied across make/model/name (case-insensitive).",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "make",
+            "description": "Filter by make (case-insensitive exact match).",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "model",
+            "description": "Filter by model (case-insensitive exact match).",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "year_min",
+            "description": "Minimum model year (inclusive).",
+            "schema": {
+              "type": "integer",
+              "nullable": true
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "year_max",
+            "description": "Maximum model year (inclusive).",
+            "schema": {
+              "type": "integer",
+              "nullable": true
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "price_min",
+            "description": "Minimum price (inclusive).",
+            "schema": {
+              "type": "number",
+              "nullable": true
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "price_max",
+            "description": "Maximum price (inclusive).",
+            "schema": {
+              "type": "number",
+              "nullable": true
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "description": "Sort key. Prefix with '-' for descending. Examples: '-price', 'price', 'year', '-mileage'. Default: '-year'.",
+            "schema": {
+              "type": "string",
+              "default": "-year",
+              "enum": [
+                "year",
+                "price",
+                "mileage",
+                "make",
+                "model",
+                "-year",
+                "-price",
+                "-mileage",
+                "-make",
+                "-model"
+              ]
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "description": "1-based page index. Default: 1.",
+            "schema": {
+              "type": "integer",
+              "default": 1,
+              "minimum": 1
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "description": "Page size. Default: 12. Max: 50.",
+            "schema": {
+              "type": "integer",
+              "default": 12,
+              "minimum": 1,
+              "maximum": 50
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "422": {
+            "$ref": "#/components/responses/UNPROCESSABLE_ENTITY"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedCars"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "List cars (search/filter/sort/pagination).",
+        "description": "Query Parameters:\n    q: Search text over make/model/name (case-insensitive; model is treated as \"name\")\n    make: Make filter (case-insensitive exact match)\n    model: Model filter (case-insensitive exact match)\n    year_min/year_max: Inclusive year range filter\n    price_min/price_max: Inclusive price range filter\n    sort: Sort expression like '-price', 'price', 'year' (default: '-year')\n    page: 1-based page index (default: 1)\n    page_size: Page size (default: 12, max: 50)\n\nReturns:\n    Envelope:\n      { items: Car[], total: number, page: number, page_size: number }",
+        "tags": [
+          "Cars"
+        ]
+      }
+    },
+    "/api/cars/{car_id}": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Car"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/DEFAULT_ERROR"
+          }
+        },
+        "summary": "Get a single car by id.",
+        "description": "Args:\n    car_id: Car identifier string (uuid-like).\n\nReturns:\n    The car object.\n\nRaises:\n    404: If the car does not exist.",
+        "tags": [
+          "Cars"
+        ]
+      },
+      "parameters": [
+        {
+          "in": "path",
+          "name": "car_id",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    }
+  },
+  "info": {
+    "title": "My Flask API",
+    "version": "v1"
+  },
+  "tags": [
+    {
+      "name": "Health Check",
+      "description": "Health check route"
+    },
+    {
+      "name": "Cars",
+      "description": "Car listing and detail endpoints"
+    }
+  ],
+  "openapi": "3.0.3",
+  "components": {
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "description": "Error code"
+          },
+          "status": {
+            "type": "string",
+            "description": "Error name"
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message"
+          },
+          "errors": {
+            "type": "object",
+            "description": "Errors",
+            "additionalProperties": {}
+          }
+        }
+      },
+      "PaginationMetadata": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer"
+          },
+          "total_pages": {
+            "type": "integer"
+          },
+          "first_page": {
+            "type": "integer"
+          },
+          "last_page": {
+            "type": "integer"
+          },
+          "page": {
+            "type": "integer"
+          },
+          "previous_page": {
+            "type": "integer"
+          },
+          "next_page": {
+            "type": "integer"
+          }
+        }
+      },
+      "Car": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Car identifier (uuid/string)."
+          },
+          "make": {
+            "type": "string",
+            "description": "Manufacturer / make (e.g., Toyota)."
+          },
+          "model": {
+            "type": "string",
+            "description": "Model name (e.g., Camry)."
+          },
+          "year": {
+            "type": "integer",
+            "minimum": 1886,
+            "maximum": 2100,
+            "description": "Model year."
+          },
+          "price": {
+            "type": "number",
+            "description": "Price in USD (or chosen currency)."
+          },
+          "mileage": {
+            "type": "number",
+            "description": "Mileage in miles (or chosen unit)."
+          },
+          "fuel": {
+            "type": "string",
+            "description": "Fuel type (e.g., Gasoline, Hybrid, Electric)."
+          },
+          "transmission": {
+            "type": "string",
+            "description": "Transmission type (e.g., Automatic, Manual)."
+          },
+          "images": {
+            "type": "array",
+            "description": "List of image URLs.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Human-readable description of the car."
+          },
+          "features": {
+            "type": "array",
+            "description": "List of notable features.",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "description",
+          "features",
+          "fuel",
+          "id",
+          "images",
+          "make",
+          "mileage",
+          "model",
+          "price",
+          "transmission",
+          "year"
+        ]
+      },
+      "PaginatedCars": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "description": "Cars in this page.",
+            "items": {
+              "$ref": "#/components/schemas/Car"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total cars matching the filter (before pagination)."
+          },
+          "page": {
+            "type": "integer",
+            "description": "Current 1-based page index."
+          },
+          "page_size": {
+            "type": "integer",
+            "description": "Current page size."
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "page_size",
+          "total"
+        ]
+      }
+    },
+    "responses": {
+      "DEFAULT_ERROR": {
+        "description": "Default error response",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "UNPROCESSABLE_ENTITY": {
+        "description": "Unprocessable Entity",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    }
+  }
+}
